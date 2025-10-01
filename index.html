@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Мессенджер</title>
+<style>
+body { font-family: Arial; padding: 20px; max-width: 600px; margin: auto; }
+input { margin: 5px 0; width: 100%; padding: 5px; }
+button { padding: 5px 10px; }
+#chat { border:1px solid #ccc; height:300px; overflow:auto; padding:5px; margin-bottom:10px; }
+.user-item { cursor:pointer; color: blue; text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<h2>Простой мессенджер</h2>
+
+<div id="auth">
+  <h3>Регистрация</h3>
+  <input id="reg_username" placeholder="Логин">
+  <input id="reg_password" placeholder="Пароль" type="password">
+  <button onclick="register()">Зарегистрироваться</button>
+  <h3>Вход</h3>
+  <input id="login_username" placeholder="Логин">
+  <input id="login_password" placeholder="Пароль" type="password">
+  <button onclick="login()">Войти</button>
+  <p id="auth_msg" style="color:red;"></p>
+</div>
+
+<div id="main" style="display:none;">
+  <p>Привет, <span id="current_user"></span>! <button onclick="logout()">Выйти</button></p>
+  
+  <h3>Поиск пользователей</h3>
+  <input id="search" placeholder="Поиск по нику" oninput="renderUsers()">
+  <div id="users_list"></div>
+  
+  <div id="chat_area" style="display:none;">
+    <h3>Чат с <span id="chat_name"></span></h3>
+    <div id="chat"></div>
+    <input id="msg_input" placeholder="Сообщение">
+    <button onclick="sendMessage()">Отправить</button>
+    <button onclick="closeChat()">Закрыть чат</button>
+  </div>
+</div>
+
+<script>
+// ====== USERS & MESSAGES STORAGE ======
+let users = JSON.parse(localStorage.getItem("users")||"[]");
+let messages = JSON.parse(localStorage.getItem("messages")||"[]");
+let currentUser = null;
+let chatWith = null;
+
+// ====== AUTH ======
+function register() {
+  const u = document.getElementById("reg_username").value.trim();
+  const p = document.getElementById("reg_password").value;
+  if(!u||!p){authMsg("Введите логин и пароль"); return;}
+  if(users.find(x=>x.username===u)){authMsg("Имя занято"); return;}
+  users.push({username:u,password:p});
+  localStorage.setItem("users",JSON.stringify(users));
+  authMsg("Регистрация успешна!");
+}
+
+function login() {
+  const u = document.getElementById("login_username").value.trim();
+  const p = document.getElementById("login_password").value;
+  const user = users.find(x=>x.username===u && x.password===p);
+  if(user){ currentUser = user.username; startMain(); } 
+  else { authMsg("Неверные данные"); }
+}
+
+function logout(){ currentUser=null; chatWith=null; document.getElementById("main").style.display="none"; document.getElementById("auth").style.display="block"; }
+
+// ====== RENDER USERS ======
+function renderUsers(){
+  const q = document.getElementById("search").value.toLowerCase();
+  const list = document.getElementById("users_list");
+  list.innerHTML="";
+  users.filter(u=>u.username!==currentUser && u.username.toLowerCase().includes(q))
+       .forEach(u=>{
+         const div = document.createElement("div");
+         div.className="user-item";
+         div.textContent=u.username;
+         div.onclick=()=>openChat(u.username);
+         list.appendChild(div);
+       });
+}
+
+// ====== CHAT ======
+function openChat(u){
+  chatWith=u;
+  document.getElementById("chat_name").textContent=chatWith;
+  document.getElementById("chat_area").style.display="block";
+  renderChat();
+}
+
+function closeChat(){
+  chatWith=null;
+  document.getElementById("chat_area").style.display="none";
+}
+
+function sendMessage(){
+  const txt=document.getElementById("msg_input").value.trim();
+  if(!txt) return;
+  messages.push({from:currentUser,to:chatWith,text:txt,time:new Date().toLocaleTimeString()});
+  localStorage.setItem("messages",JSON.stringify(messages));
+  document.getElementById("msg_input").value="";
+  renderChat();
+}
+
+function renderChat(){
+  const chatDiv=document.getElementById("chat");
+  chatDiv.innerHTML="";
+  messages.filter(m=>(m.from===currentUser && m.to===chatWith) || (m.from===chatWith && m.to===currentUser))
+          .forEach(m=>{
+            const p=document.createElement("p");
+            p.innerHTML=`<b>${m.from===currentUser?"Я":m.from}:</b> ${m.text} <i style="font-size:0.7em">${m.time}</i>`;
+            chatDiv.appendChild(p);
+          });
+  chatDiv.scrollTop = chatDiv.scrollHeight;
+}
+
+// ====== START MAIN ======
+function startMain(){
+  document.getElementById("auth").style.display="none";
+  document.getElementById("main").style.display="block";
+  document.getElementById("current_user").textContent=currentUser;
+  renderUsers();
+}
+
+function authMsg(txt){ document.getElementById("auth_msg").textContent=txt; }
+</script>
+
+</body>
+</html>
+
