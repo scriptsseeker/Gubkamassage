@@ -18,7 +18,7 @@ body { font-family: Arial; margin:0; height:100vh; display:flex; background:#e5d
 .msg { padding:8px 12px; border-radius:15px; margin:5px 0; max-width:70%; display:inline-block; clear:both; word-wrap: break-word; }
 .msg.self { background:#dcf8c6; float:right; }
 .msg.other { background:white; float:left; }
-#msg_input { padding:10px; border:none; width:calc(100% - 100px); border-radius:15px; margin-right:5px; }
+#msg_input { padding:10px; border:none; width:calc(100% - 90px); border-radius:15px; margin-right:5px; }
 #send_btn { width:80px; border:none; border-radius:15px; background:#0088cc; color:white; cursor:pointer; }
 #auth { padding:20px; max-width:400px; margin:auto; background:white; border-radius:10px; box-shadow:0 0 10px rgba(0,0,0,0.2); }
 #auth input { width:100%; padding:8px; margin:5px 0; }
@@ -34,6 +34,134 @@ body { font-family: Arial; margin:0; height:100vh; display:flex; background:#e5d
   <input id="reg_password" placeholder="Пароль" type="password">
   <button onclick="register()">Зарегистрироваться</button>
   <br><br>
+  <input id="login_username" placeholder="Логин">
+  <input id="login_password" placeholder="Пароль" type="password">
+  <button onclick="login()">Войти</button>
+  <p id="auth_msg"></p>
+</div>
+
+<div id="main" style="display:none; width:100%; height:100%; display:flex;">
+  <div id="sidebar">
+    <h2 id="current_user"></h2>
+    <button onclick="logout()">Выйти</button>
+    <input id="search" placeholder="Поиск..." oninput="renderUsers()">
+    <div id="users_list"></div>
+  </div>
+  <div id="chat_area" style="display:none; flex:1; flex-direction:column;">
+    <div id="chat_header"></div>
+    <div id="chat"></div>
+    <div style="display:flex; padding:10px; background:#f0f0f0;">
+      <input id="msg_input" placeholder="Сообщение" onkeypress="if(event.key==='Enter') sendMessage()">
+      <button id="send_btn" onclick="sendMessage()">Отправить</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== STORAGE =====
+let users = JSON.parse(localStorage.getItem("users")||"[]");
+let messages = JSON.parse(localStorage.getItem("messages")||"[]");
+let currentUser = localStorage.getItem("currentUser") || null;
+let chatWith = null;
+
+// ===== AUTH =====
+function register(){
+  const u=document.getElementById("reg_username").value.trim();
+  const p=document.getElementById("reg_password").value;
+  if(!u||!p){authMsg("Введите логин и пароль"); return;}
+  if(users.find(x=>x.username===u)){authMsg("Имя занято"); return;}
+  users.push({username:u,password:p});
+  localStorage.setItem("users",JSON.stringify(users));
+  authMsg("Регистрация успешна!");
+}
+
+function login(){
+  const u=document.getElementById("login_username").value.trim();
+  const p=document.getElementById("login_password").value;
+  const user=users.find(x=>x.username===u && x.password===p);
+  if(user){ currentUser=u; localStorage.setItem("currentUser",currentUser); startMain(); }
+  else{ authMsg("Неверные данные"); }
+}
+
+function logout(){
+  localStorage.removeItem("currentUser");
+  currentUser=null; chatWith=null;
+  document.getElementById("main").style.display="none";
+  document.getElementById("auth").style.display="block";
+}
+
+// ===== AUTH MSG =====
+function authMsg(txt){ document.getElementById("auth_msg").textContent=txt; }
+
+// ===== RENDER USERS =====
+function renderUsers(){
+  const q=document.getElementById("search").value.toLowerCase();
+  const list=document.getElementById("users_list");
+  list.innerHTML="";
+  users.filter(u=>u.username!==currentUser && u.username.toLowerCase().includes(q))
+       .sort((a,b)=>a.username.localeCompare(b.username))
+       .forEach(u=>{
+         const div=document.createElement("div");
+         div.className="user-item"; div.textContent=u.username;
+         div.onclick=()=>openChat(u.username);
+         list.appendChild(div);
+       });
+}
+
+// ===== CHAT =====
+function openChat(u){
+  chatWith=u;
+  document.getElementById("chat_header").textContent="Чат с "+chatWith;
+  document.getElementById("chat_area").style.display="flex";
+  renderChat();
+}
+
+function closeChat(){ chatWith=null; document.getElementById("chat_area").style.display="none"; }
+
+function sendMessage(){
+  const txt=document.getElementById("msg_input").value.trim();
+  if(!txt || !chatWith) return;
+  messages.push({from:currentUser,to:chatWith,text:txt,time:new Date().toLocaleTimeString()});
+  localStorage.setItem("messages",JSON.stringify(messages));
+  document.getElementById("msg_input").value="";
+  renderChat();
+}
+
+// ===== RENDER CHAT =====
+function renderChat(){
+  if(!chatWith) return;
+  const chatDiv=document.getElementById("chat");
+  chatDiv.innerHTML="";
+  messages.filter(m=>(m.from===currentUser && m.to===chatWith)||(m.from===chatWith && m.to===currentUser))
+          .forEach(m=>{
+            const div=document.createElement("div");
+            div.className="msg "+(m.from===currentUser?"self":"other");
+            div.textContent=m.text+" ("+m.time+")";
+            chatDiv.appendChild(div);
+          });
+  chatDiv.scrollTop=chatDiv.scrollHeight;
+}
+
+// ===== AUTO-UPDATE CHAT =====
+setInterval(()=>{
+  if(chatWith) renderChat();
+  renderUsers();
+}, 1000);
+
+// ===== START MAIN =====
+function startMain(){
+  document.getElementById("auth").style.display="none";
+  document.getElementById("main").style.display="flex";
+  document.getElementById("current_user").textContent=currentUser;
+  renderUsers();
+}
+
+// ===== INIT =====
+if(currentUser){ startMain(); }
+</script>
+
+</body>
+</html>
   <input id="login_username" placeholder="Логин">
   <input id="login_password" placeholder="Пароль" type="password">
   <button onclick="login()">Войти</button>
